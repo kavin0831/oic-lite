@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: oic-lite-broker
+    runtime: python
+    plan: free
+    rootDir: broker
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: AGENT_REGISTRATION_TOKEN
+        generateValue: true
+      - key: CLIENT_API_KEY
+        generateValue: true
+
+  - type: web
+    name: oic-lite-sample-app
+    runtime: python
+    plan: free
+    rootDir: sample_app
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: BROKER_URL
+        sync: false   # set to https://oic-lite-broker.onrender.com after first deploy
+      - key: CLIENT_API_KEY
+        sync: false
+      - key: AGENT_GROUP_IDENTIFIER
+        value: default-group

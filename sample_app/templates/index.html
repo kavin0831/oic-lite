@@ -1,0 +1,44 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>OIC-Lite Sample App</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 900px; margin: 2rem auto; color: #222; }
+    textarea { width: 100%; height: 100px; font-family: monospace; font-size: 14px; }
+    input[type=text] { width: 300px; padding: 4px; }
+    button { padding: 8px 16px; margin-top: 8px; }
+    table { border-collapse: collapse; margin-top: 1rem; width: 100%; }
+    th, td { border: 1px solid #ccc; padding: 4px 8px; font-size: 13px; text-align: left; }
+    .error { color: #b00020; white-space: pre-wrap; }
+    .meta { color: #666; font-size: 13px; margin-top: 6px; }
+  </style>
+</head>
+<body>
+  <h2>OIC-Lite Sample App</h2>
+  <p class="meta">Broker: {{ broker_url }}</p>
+
+  <form method="post" action="/run">
+    <label>Agent group:</label><br>
+    <input type="text" name="group" value="{{ default_group }}"><br><br>
+    <label>SQL:</label><br>
+    <textarea name="sql">{{ sql or "SELECT sysdate FROM dual" }}</textarea><br>
+    <button type="submit">Run query</button>
+  </form>
+
+  {% if result %}
+    <hr>
+    {% if result.ok %}
+      <p class="meta">ok — {{ result.row_count }} row(s) in {{ result.took_ms }}ms</p>
+      <table>
+        <tr>{% for c in result.columns %}<th>{{ c }}</th>{% endfor %}</tr>
+        {% for row in result.rows %}
+          <tr>{% for v in row %}<td>{{ v }}</td>{% endfor %}</tr>
+        {% endfor %}
+      </table>
+    {% else %}
+      <p class="error">Error: {{ result.error }}</p>
+    {% endif %}
+  {% endif %}
+</body>
+</html>
