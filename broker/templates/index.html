@@ -32,7 +32,13 @@
       <table>
         <tr>{% for c in result.columns %}<th>{{ c }}</th>{% endfor %}</tr>
         {% for row in result.rows %}
-          <tr>{% for v in row %}<td>{{ v }}</td>{% endfor %}</tr>
+          <tr>
+            {% if row is mapping %}
+              {% for c in result.columns %}<td>{{ row[c] }}</td>{% endfor %}
+            {% else %}
+              {% for v in row %}<td>{{ v }}</td>{% endfor %}
+            {% endif %}
+          </tr>
         {% endfor %}
       </table>
     {% else %}
