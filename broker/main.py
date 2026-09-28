@@ -21,8 +21,12 @@ import time
 import uuid
 from typing import Dict, Optional
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Header
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Header, Request, Form
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
+
+templates = Jinja2Templates(directory="templates")
 
 # Shared secret the agent must present when it dials in.
 # In production, issue a unique token per agent/group (like oic_CLIENT_SECRET).
@@ -90,14 +94,10 @@ async def agent_socket(ws: WebSocket, token: str, group: str):
             del AGENTS[group]
 
 
-@app.post("/api/query", response_model=QueryResponse)
-async def submit_query(req: QueryRequest, x_api_key: str = Header(default="")):
-    if x_api_key != CLIENT_API_KEY:
-        raise HTTPException(status_code=401, detail="invalid x-api-key")
-
-    agent = AGENTS.get(req.group)
+async def _run_query(group: str, sql: str, params: Optional[dict], max_rows: int) -> QueryResponse:
+    agent = AGENTS.get(group)
     if not agent:
-        raise HTTPException(status_code=503, detail=f"no agent connected for group '{req.group}'")
+        raise HTTPException(status_code=503, detail=f"no agent connected for group '{group}'")
 
     request_id = str(uuid.uuid4())
     loop = asyncio.get_event_loop()
@@ -106,9 +106,9 @@ async def submit_query(req: QueryRequest, x_api_key: str = Header(default="")):
 
     payload = {
         "request_id": request_id,
-        "sql": req.sql,
-        "params": req.params or {},
-        "max_rows": req.max_rows,
+        "sql": sql,
+        "params": params or {},
+        "max_rows": max_rows,
     }
 
     start = time.time()
@@ -137,6 +137,48 @@ async def submit_query(req: QueryRequest, x_api_key: str = Header(default="")):
         row_count=result.get("row_count"),
         took_ms=took_ms,
     )
+
+
+@app.post("/api/query", response_model=QueryResponse)
+async def submit_query(req: QueryRequest, x_api_key: str = Header(default="")):
+    if x_api_key != CLIENT_API_KEY:
+        raise HTTPException(status_code=401, detail="invalid x-api-key")
+    return await _run_query(req.group, req.sql, req.params, req.max_rows)
+
+
+# --- Built-in test UI (formerly a separate sample_app service) -------------
+# Merged in so the broker and the test client are one Render service/URL.
+# Uses CLIENT_API_KEY internally — no network hop, no separate key needed
+# by whoever loads this page.
+
+DEFAULT_UI_GROUP = os.environ.get("DEFAULT_UI_GROUP", "default-group")
+
+
+@app.get("/", response_class=HTMLResponse)
+async def ui_index(request: Request):
+    return templates.TemplateResponse("index.html", {
+        "request": request,
+        "default_group": DEFAULT_UI_GROUP,
+        "sql": "SELECT sysdate FROM dual",
+        "result": None,
+    })
+
+
+@app.post("/ui/run", response_class=HTMLResponse)
+async def ui_run_query(request: Request, group: str = Form(...), sql: str = Form(...)):
+    start = time.time()
+    try:
+        resp = await _run_query(group, sql, None, 200)
+        result = resp.model_dump()
+    except HTTPException as e:
+        result = {"ok": False, "error": e.detail, "took_ms": int((time.time() - start) * 1000)}
+
+    return templates.TemplateResponse("index.html", {
+        "request": request,
+        "default_group": group,
+        "sql": sql,
+        "result": result,
+    })
 
 
 @app.get("/api/agents")

@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>OIC-Lite Sample App</title>
+  <title>OIC-Lite Broker</title>
   <style>
     body { font-family: system-ui, sans-serif; max-width: 900px; margin: 2rem auto; color: #222; }
     textarea { width: 100%; height: 100px; font-family: monospace; font-size: 14px; }
@@ -15,10 +15,9 @@
   </style>
 </head>
 <body>
-  <h2>OIC-Lite Sample App</h2>
-  <p class="meta">Broker: {{ broker_url }}</p>
+  <h2>OIC-Lite Broker — Test Console</h2>
 
-  <form method="post" action="/run">
+  <form method="post" action="/ui/run">
     <label>Agent group:</label><br>
     <input type="text" name="group" value="{{ default_group }}"><br><br>
     <label>SQL:</label><br>
